@@ -30,7 +30,7 @@ Install-Module Az -Scope CurrentUser
 Install-Module Microsoft.Graph -Scope CurrentUser
 
 # 2. Run the Builder wizard
-.\builder\Build-AutopilotTool.ps1
+.\Start-Builder.ps1
 ```
 
 The Builder walks you through 4 steps: deploy Azure backend, validate connection, set branding + group tags, generate the field tool.
