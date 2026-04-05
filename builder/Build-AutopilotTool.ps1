@@ -571,19 +571,15 @@ $xamlString = @"
                                             </Grid>
                                             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                 <TextBlock Name="icoStep3" Text="&#x25CB;" Grid.Column="0" FontSize="13" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                                <TextBlock Name="lblStep3" Text="App Service Plan" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Name="lblStep3" Text="Function App" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                                             </Grid>
                                             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                 <TextBlock Name="icoStep4" Text="&#x25CB;" Grid.Column="0" FontSize="13" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                                <TextBlock Name="lblStep4" Text="Function App" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Name="lblStep4" Text="Graph Permission" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                                             </Grid>
                                             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                 <TextBlock Name="icoStep5" Text="&#x25CB;" Grid.Column="0" FontSize="13" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                                <TextBlock Name="lblStep5" Text="Graph Permission" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                            </Grid>
-                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                                <TextBlock Name="icoStep6" Text="&#x25CB;" Grid.Column="0" FontSize="13" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                                <TextBlock Name="lblStep6" Text="Deploy Code" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Name="lblStep5" Text="Deploy Code" Grid.Column="1" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                                             </Grid>
                                         </StackPanel>
                                         <TextBlock Name="lblDeployError" Text="" FontSize="10"
@@ -808,7 +804,7 @@ $namedElements = @(
     'btnSignIn','lblSignInStatus','panelDeployConfig','cmbSubscription',
     'txtResourceGroup','cmbLocation','txtPrefix','btnDeploy',
     'panelSteps','icoStep1','lblStep1','icoStep2','lblStep2','icoStep3','lblStep3',
-    'icoStep4','lblStep4','icoStep5','lblStep5','icoStep6','lblStep6',
+    'icoStep4','lblStep4','icoStep5','lblStep5',
     'lblDeployError',
     'txtCliCommands','btnCopyCommands','lblCopied',
     'txtCompanyName',
@@ -1239,14 +1235,9 @@ $ui.btnDeploy.Add_Click({
             $state.StepLabels[2] = "Create Storage Account ($storageAccountName)"
             New-AzStorageAccount -ResourceGroupName $rg -Name $storageAccountName -Location $loc -SkuName 'Standard_LRS' -Kind 'StorageV2' -MinimumTlsVersion 'TLS1_2' -AllowBlobPublicAccess $false -ErrorAction Stop | Out-Null
 
-            # Step 3: App Service Plan
+            # Step 3: Function App (creates its own consumption plan)
             $state.CurrentStep = 3
-            $state.StepLabels[3] = "Create App Service Plan ($planName)"
-            New-AzAppServicePlan -ResourceGroupName $rg -Name $planName -Location $loc -Tier 'Dynamic' -ErrorAction Stop | Out-Null
-
-            # Step 4: Function App
-            $state.CurrentStep = 4
-            $state.StepLabels[4] = "Create Function App ($functionAppName)"
+            $state.StepLabels[3] = "Create Function App ($functionAppName)"
             New-AzFunctionApp -ResourceGroupName $rg -Name $functionAppName -Location $loc `
                 -StorageAccountName $storageAccountName -Runtime 'PowerShell' -RuntimeVersion '7.2' `
                 -FunctionsVersion 4 -OSType 'Windows' -ErrorAction Stop | Out-Null
@@ -1254,27 +1245,26 @@ $ui.btnDeploy.Add_Click({
             $funcApp = Get-AzWebApp -ResourceGroupName $rg -Name $functionAppName -ErrorAction Stop
             $functionAppUrl = "https://$($funcApp.DefaultHostName)"
             $principalId = $funcApp.Identity.PrincipalId
-            $state.StepLabels[4] = "Create Function App ($functionAppName)"
+            $state.StepLabels[3] = "Create Function App ($functionAppName)"
 
-            # Step 5: Grant Graph Permission
-            $state.CurrentStep = 5
-            $state.StepLabels[5] = "Grant Graph API Permission"
+            # Step 4: Grant Graph Permission
+            $state.CurrentStep = 4
+            $state.StepLabels[4] = "Grant Graph API Permission"
             & $grantScript -ManagedIdentityPrincipalId $principalId
 
-            # Step 6: Deploy Code
-            $state.CurrentStep = 6
-            $state.StepLabels[6] = "Deploy Function Code"
+            # Step 5: Deploy Code
+            $state.CurrentStep = 5
+            $state.StepLabels[5] = "Deploy Function Code"
             $zipPath = Join-Path $env:TEMP 'autopilot-function.zip'
             if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
             $filesToZip = @('host.json', 'profile.ps1', 'requirements.psd1', 'Upload', 'Status', 'Health')
             Compress-Archive -Path ($filesToZip | ForEach-Object { Join-Path $functionDir $_ }) -DestinationPath $zipPath -Force
             Publish-AzWebApp -ResourceGroupName $rg -Name $functionAppName -ArchivePath $zipPath -Force -ErrorAction Stop | Out-Null
 
-            # Done — URL is known, key must be retrieved manually from Azure Portal
             $state.ResultUrl = $functionAppUrl
             $state.ResultKey = ''
             $state.ResultFunctionAppName = $functionAppName
-            $state.CurrentStep = 7
+            $state.CurrentStep = 6
             $state.Done = $true
         }
         catch {
