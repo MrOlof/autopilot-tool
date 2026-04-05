@@ -65,6 +65,18 @@ az deployment group create \
 | DEM account | Anyone | Microsoft says DEM + Autopilot is unsupported |
 | **This tool** | **Anyone** | **Can submit hardware hashes. That's it.** |
 
+### But the Managed Identity has broad permissions?
+
+Yes — the Managed Identity has `DeviceManagementServiceConfig.ReadWrite.All`. But the API key on the USB **is not a Graph API credential**. It's a key to the Azure Function, which only exposes 3 endpoints:
+
+| Endpoint | What it does |
+|----------|-------------|
+| `POST /api/upload` | Submit a hardware hash |
+| `GET /api/status/{id}` | Check import progress |
+| `GET /api/health` | Health check |
+
+If someone calls `/api/create-policy` or `/api/delete-device` — they get a **404**. Those endpoints don't exist. The Managed Identity token is generated inside the Function at runtime and is never returned in any response. The attacker never sees it and cannot use it.
+
 ## Components
 
 | | Description |
