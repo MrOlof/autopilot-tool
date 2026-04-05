@@ -127,7 +127,7 @@ function Show-MainWindow {
     $xamlString = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$($Config.CompanyName) - Autopilot Registration"
+        Title="$($Config.CompanyName)"
         Width="520" Height="560"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -267,10 +267,10 @@ function Show-MainWindow {
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="{StaticResource AccentBrush}">
-            <TextBlock Text="$($Config.CompanyName)"
+            <TextBlock Text="$($Config.CompanyName) - Autopilot Registration"
                        Foreground="White" FontSize="16" FontWeight="Bold"
                        FontFamily="Segoe UI"
-                       VerticalAlignment="Center" Margin="18,0,0,0"/>
+                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
         </Border>
 
         <Border Grid.Row="1" Background="{StaticResource CardBgBrush}"
@@ -478,8 +478,12 @@ function Show-MainWindow {
                         $complete = $true
                     }
                     default {
-                        $progress = [math]::Round(($attempt / $maxAttempts) * 100)
-                        Add-Status "Syncing... ($progress% timeout, attempt $attempt/$maxAttempts)" 'Yellow'
+                        if ($attempt -eq 1 -or $attempt % 5 -eq 0) {
+                            $elapsed = $attempt * 12
+                            $minutes = [math]::Floor($elapsed / 60)
+                            $seconds = $elapsed % 60
+                            Add-Status "Syncing... ${minutes}m ${seconds}s elapsed" 'Yellow'
+                        }
                     }
                 }
             }

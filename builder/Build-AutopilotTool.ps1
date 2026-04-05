@@ -675,6 +675,9 @@ $xamlString = @"
                             <Label Content="Company Name:" Grid.Column="0"/>
                             <TextBox Name="txtCompanyName" Text="Your Company" Grid.Column="1"/>
                         </Grid>
+                        <TextBlock Text="Displays as: [Company Name] - Autopilot Registration" FontSize="11"
+                                   Foreground="{StaticResource TextMutedBrush}" Margin="110,0,0,10"/>
+
                         <!-- Group Tags -->
                         <TextBlock Text="GROUP TAGS" FontWeight="SemiBold" FontSize="12"
                                    Foreground="{StaticResource AccentBrush}" Margin="0,0,0,10"/>
