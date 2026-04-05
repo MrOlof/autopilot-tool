@@ -598,7 +598,7 @@ $xamlString = @"
                         <Border Name="panelManual" Background="{StaticResource CardBgBrush}"
                                 CornerRadius="6" Padding="14" Margin="0,0,0,6" Visibility="Collapsed">
                             <StackPanel>
-                                <TextBlock Text="Run these commands in PowerShell or Azure CLI. After completing, switch to 'I already have an Azure Function deployed' and enter your URL and key."
+                                <TextBlock Text="Run these commands in PowerShell or Azure CLI. After completing, click Next to enter your URL and key."
                                            Foreground="{StaticResource TextMutedBrush}" FontSize="12"
                                            TextWrapping="Wrap" Margin="0,0,0,14"/>
                                 <TextBox Name="txtCliCommands" Height="220" IsReadOnly="True"
@@ -1162,7 +1162,7 @@ function Update-DeployStepUI {
         $script:FunctionKey = $state.ResultKey
         $ui.lblDeployError.Foreground = [System.Windows.Media.Brushes]::LimeGreen
         $appName = if ($state.ResultFunctionAppName) { $state.ResultFunctionAppName } else { 'your Function App' }
-        $ui.lblDeployError.Text = "Deployment complete!`nURL: $($state.ResultUrl)`n`nGet your Function Key from Azure Portal:`nFunction App > $appName > App keys > default`n`nThen switch to 'I already have an Azure Function' and enter the URL + key, or click Next."
+        $ui.lblDeployError.Text = "Deployment complete!`nURL: $($state.ResultUrl)`n`nGet your Function Key from Azure Portal:`nFunction App > $appName > App keys > default`n`nClick Next to enter the key and validate the connection."
     }
 }
 
