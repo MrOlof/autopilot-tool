@@ -6,6 +6,8 @@
 
 Register devices into Windows Autopilot directly from OOBE — securely, without admin credentials on the device.
 
+https://mrolof.dev/
+
 </div>
 
 ---
