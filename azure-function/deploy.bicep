@@ -13,7 +13,6 @@ var storageAccountName = 'st${replace(namePrefix, '-', '')}${take(uniqueSuffix, 
 var appInsightsName = '${namePrefix}-insights'
 var hostingPlanName = '${namePrefix}-plan'
 
-// Storage Account (required by Azure Functions)
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
@@ -27,7 +26,6 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
-// Application Insights (audit trail)
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: appInsightsName
   location: location
@@ -40,7 +38,6 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-// Consumption Plan (pay-per-execution, essentially free for this workload)
 resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: hostingPlanName
   location: location
@@ -53,7 +50,6 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   }
 }
 
-// Function App
 resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name: functionAppName
   location: location
@@ -97,20 +93,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
         }
-        {
-          name: 'RATE_LIMIT_MAX_REQUESTS'
-          value: '30'
-        }
-        {
-          name: 'RATE_LIMIT_WINDOW_MINUTES'
-          value: '60'
-        }
       ]
     }
   }
 }
 
-// Outputs for setup script
 output functionAppName string = functionApp.name
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
 output managedIdentityPrincipalId string = functionApp.identity.principalId

@@ -15,7 +15,6 @@ if (-not $importId) {
     return
 }
 
-# Validate importId format (GUID)
 if ($importId -notmatch '^[0-9a-fA-F\-]{36}$') {
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::BadRequest
@@ -24,8 +23,6 @@ if ($importId -notmatch '^[0-9a-fA-F\-]{36}$') {
     })
     return
 }
-
-# --- Get Managed Identity Token ---
 
 try {
     $tokenUri = "$($env:IDENTITY_ENDPOINT)?resource=https://graph.microsoft.com&api-version=2019-08-01"
@@ -43,8 +40,6 @@ catch {
     })
     return
 }
-
-# --- Query Import Status ---
 
 $graphUri = "https://graph.microsoft.com/beta/deviceManagement/importedWindowsAutopilotDeviceIdentities/$importId"
 

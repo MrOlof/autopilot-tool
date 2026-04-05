@@ -4,8 +4,6 @@ param($Request, $TriggerMetadata)
 
 $ErrorActionPreference = 'Stop'
 
-# --- Input Validation ---
-
 $body = $Request.Body
 
 if (-not $body) {
@@ -20,10 +18,7 @@ if (-not $body) {
 $hardwareHash = $body.hardwareHash
 $serialNumber = $body.serialNumber
 $groupTag     = $body.groupTag
-$model        = $body.model
-$manufacturer = $body.manufacturer
 
-# Validate required fields
 if (-not $hardwareHash -or -not $serialNumber) {
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::BadRequest
@@ -49,7 +44,6 @@ catch {
     return
 }
 
-# Validate serial number (alphanumeric + hyphens + spaces + dots + underscores, 1-64 chars)
 if ($serialNumber -notmatch '^[A-Za-z0-9\-\s\._]{1,64}$') {
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::BadRequest
@@ -59,7 +53,6 @@ if ($serialNumber -notmatch '^[A-Za-z0-9\-\s\._]{1,64}$') {
     return
 }
 
-# Validate group tag if provided (alphanumeric + hyphens + spaces, max 128 chars)
 if ($groupTag -and $groupTag -notmatch '^[A-Za-z0-9\-\s]{1,128}$') {
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::BadRequest
@@ -72,8 +65,6 @@ if ($groupTag -and $groupTag -notmatch '^[A-Za-z0-9\-\s]{1,128}$') {
 $clientIp = $Request.Headers['X-Forwarded-For']
 if (-not $clientIp) { $clientIp = 'unknown' }
 Write-Information "Upload request from $clientIp for serial: $serialNumber"
-
-# --- Get Managed Identity Token for Graph API ---
 
 try {
     $tokenUri = "$($env:IDENTITY_ENDPOINT)?resource=https://graph.microsoft.com&api-version=2019-08-01"
@@ -91,8 +82,6 @@ catch {
     })
     return
 }
-
-# --- Upload Hardware Hash to Autopilot ---
 
 $graphUri = 'https://graph.microsoft.com/beta/deviceManagement/importedWindowsAutopilotDeviceIdentities'
 
@@ -139,7 +128,6 @@ catch {
     $errorDetail = $_.Exception.Message
     Write-Error "Graph API call failed: $errorDetail"
 
-    # Check for duplicate device
     if ($errorDetail -match '409' -or $errorDetail -match 'already exists') {
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::Conflict

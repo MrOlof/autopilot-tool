@@ -25,9 +25,9 @@
     }
   },
   "variables": {
-    "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
     "functionAppName": "[concat(parameters('namePrefix'), '-', uniqueString(resourceGroup().id))]",
     "storageAccountName": "[concat('st', replace(parameters('namePrefix'), '-', ''), take(uniqueString(resourceGroup().id), 8))]",
+    "appInsightsName": "[concat(parameters('namePrefix'), '-insights')]",
     "hostingPlanName": "[concat(parameters('namePrefix'), '-plan')]"
   },
   "resources": [
@@ -43,6 +43,19 @@
       "properties": {
         "supportsHttpsTrafficOnly": true,
         "minimumTlsVersion": "TLS1_2"
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "RetentionInDays": 90,
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
       }
     },
     {
@@ -66,7 +79,8 @@
       "kind": "functionapp",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
-        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"
       ],
       "identity": {
         "type": "SystemAssigned"
@@ -100,12 +114,12 @@
               "value": "powershell"
             },
             {
-              "name": "RATE_LIMIT_MAX_REQUESTS",
-              "value": "30"
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey]"
             },
             {
-              "name": "RATE_LIMIT_WINDOW_MINUTES",
-              "value": "60"
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
             }
           ]
         }
@@ -124,6 +138,10 @@
     "managedIdentityPrincipalId": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'Full').identity.principalId]"
+    },
+    "appInsightsName": {
+      "type": "string",
+      "value": "[variables('appInsightsName')]"
     }
   }
 }

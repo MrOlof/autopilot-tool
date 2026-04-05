@@ -15,9 +15,7 @@
 
 #Requires -Version 5.1
 
-# ======================================================================
-#   CONFIGURATION - Set by Builder tool, do not edit manually
-# ======================================================================
+# Configuration (set by Builder tool, do not edit manually)
 
 $Config = @{
     CompanyName  = 'Your Company'
@@ -28,17 +26,11 @@ $Config = @{
     Version      = '1.0.0'
 }
 
-# ======================================================================
-#   CORE LOGIC
-# ======================================================================
-
 $ErrorActionPreference = 'Stop'
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
-
-# --- Hardware Hash Collection ---
 
 function Get-AutopilotHardwareHash {
     try {
@@ -59,8 +51,6 @@ function Get-AutopilotHardwareHash {
         throw "Failed to collect hardware hash: $_"
     }
 }
-
-# --- API Communication ---
 
 function Invoke-AutopilotUpload {
     param(
@@ -108,8 +98,6 @@ function Get-ImportStatus {
     }
 }
 
-# --- Logging ---
-
 $script:LogPath = $null
 
 function Initialize-Log {
@@ -131,10 +119,6 @@ function Write-Log {
         Add-Content -Path $script:LogPath -Value $entry -ErrorAction SilentlyContinue
     }
 }
-
-# ======================================================================
-#   WPF GUI
-# ======================================================================
 
 function Show-MainWindow {
     Initialize-Log
@@ -164,7 +148,6 @@ function Show-MainWindow {
         <SolidColorBrush x:Key="InfoBrush" Color="#4da3ff"/>
         <SolidColorBrush x:Key="LogBgBrush" Color="#141414"/>
 
-        <!-- ComboBox light theme for Group Tag dropdown -->
         <Style x:Key="LightComboBox" TargetType="ComboBox">
             <Setter Property="Background" Value="#f0f0f0"/>
             <Setter Property="Foreground" Value="#1e1e1e"/>
@@ -241,7 +224,6 @@ function Show-MainWindow {
             </Style.Triggers>
         </Style>
 
-        <!-- Upload button style -->
         <Style x:Key="UploadButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -284,7 +266,6 @@ function Show-MainWindow {
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Title Bar -->
         <Border Grid.Row="0" Background="{StaticResource AccentBrush}">
             <TextBlock Text="$($Config.CompanyName)"
                        Foreground="White" FontSize="16" FontWeight="Bold"
@@ -292,7 +273,6 @@ function Show-MainWindow {
                        VerticalAlignment="Center" Margin="18,0,0,0"/>
         </Border>
 
-        <!-- Device Information Card -->
         <Border Grid.Row="1" Background="{StaticResource CardBgBrush}"
                 CornerRadius="6" Margin="15,15,15,0" Padding="16,14">
             <Grid>
@@ -346,7 +326,6 @@ function Show-MainWindow {
             </Grid>
         </Border>
 
-        <!-- Group Tag -->
         <Grid Grid.Row="2" Margin="15,12,15,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="90"/>
@@ -361,14 +340,12 @@ function Show-MainWindow {
                       Height="34"/>
         </Grid>
 
-        <!-- Upload Button -->
         <Button Grid.Row="3" Name="btnUpload"
                 Content="Upload to Autopilot"
                 Style="{StaticResource UploadButton}"
                 IsEnabled="False"
                 Margin="15,12,15,0" Height="42"/>
 
-        <!-- Status Log -->
         <Border Grid.Row="4" Background="{StaticResource LogBgBrush}"
                 CornerRadius="6" Margin="15,12,15,15">
             <ScrollViewer Name="logScroller" VerticalScrollBarVisibility="Auto"
@@ -380,13 +357,11 @@ function Show-MainWindow {
 </Window>
 "@
 
-    # Remove x:Name -> Name for PowerShell compatibility, preserve x:Key
     $processedXaml = $xamlString -replace 'x:Name="', 'Name="'
     [xml]$xaml = $processedXaml
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     $window = [System.Windows.Markup.XamlReader]::Load($reader)
 
-    # --- Find all named elements ---
     $ui = @{}
     $namedElements = @(
         'lblSerial', 'lblManufacturer', 'lblModel', 'lblHash',
@@ -399,7 +374,6 @@ function Show-MainWindow {
         else { Write-Warning "Element not found: $name" }
     }
 
-    # --- Populate Group Tag dropdown ---
     foreach ($tag in $Config.GroupTags) {
         $ui.cmbGroupTag.Items.Add($tag) | Out-Null
     }
@@ -410,7 +384,6 @@ function Show-MainWindow {
         $ui.cmbGroupTag.SelectedIndex = 0
     }
 
-    # --- Status Helper ---
     function Add-Status {
         param([string]$Text, [string]$Color = 'White')
         $colorMap = @{
@@ -438,7 +411,6 @@ function Show-MainWindow {
         $window.Dispatcher.Invoke([Action]{}, 'Render')
     }
 
-    # --- Collect Hardware Hash on Load ---
     $script:deviceInfo = $null
 
     $window.Add_Loaded({
@@ -462,7 +434,6 @@ function Show-MainWindow {
         }
     })
 
-    # --- Upload Click Handler ---
     $ui.btnUpload.Add_Click({
         $ui.btnUpload.IsEnabled = $false
         $ui.cmbGroupTag.IsEnabled = $false
@@ -471,7 +442,6 @@ function Show-MainWindow {
         Add-Status "Uploading hash with tag: $selectedTag" 'Blue'
 
         try {
-            # Upload
             $result = Invoke-AutopilotUpload `
                 -HardwareHash $script:deviceInfo.HardwareHash `
                 -SerialNumber $script:deviceInfo.SerialNumber `
@@ -482,7 +452,6 @@ function Show-MainWindow {
             Add-Status "Upload submitted. Import ID: $($result.importId)" 'Green'
             Add-Status 'Waiting for Autopilot sync...' 'Yellow'
 
-            # Poll for completion
             $importId = $result.importId
             $maxAttempts = 40
             $attempt = 0
@@ -535,9 +504,7 @@ function Show-MainWindow {
         }
     })
 
-    # --- Show Window ---
     $window.ShowDialog() | Out-Null
 }
 
-# --- Entry Point ---
 Show-MainWindow
