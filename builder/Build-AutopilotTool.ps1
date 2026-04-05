@@ -1124,9 +1124,10 @@ $script:DeployState = [hashtable]::Synchronized(@{
 # Helper: update deploy step UI from dispatcher
 function Update-DeployStepUI {
     $state = $script:DeployState
-    for ($i = 1; $i -le 6; $i++) {
+    for ($i = 1; $i -le 5; $i++) {
         $ico = $ui["icoStep$i"]
         $lbl = $ui["lblStep$i"]
+        if (-not $ico -or -not $lbl) { continue }
         if ($state.StepLabels.ContainsKey($i)) { $lbl.Text = $state.StepLabels[$i] }
 
         if ($state.Error -and $i -eq $state.CurrentStep) {
