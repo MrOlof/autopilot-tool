@@ -12,6 +12,16 @@
 
 $ErrorActionPreference = 'Stop'
 
+# --- Hide Console Window ---
+Add-Type -Name ConsoleWindow -Namespace Win32 -MemberDefinition '
+[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+'
+$consoleHwnd = [Win32.ConsoleWindow]::GetConsoleWindow()
+if ($consoleHwnd -ne [IntPtr]::Zero) {
+    [Win32.ConsoleWindow]::ShowWindow($consoleHwnd, 0) | Out-Null
+}
+
 # --- Prerequisite Check ---
 function Test-Prerequisites {
     $missing = @()
