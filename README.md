@@ -11,14 +11,6 @@ Built with an Azure Function proxy architecture — no admin credentials on the 
 
 </div>
 
-## What's New in v1.0.0
-
-- Initial release with full end-to-end Autopilot device registration
-- Azure Function proxy with Managed Identity (zero credentials on device)
-- WPF Builder wizard with automated Azure deployment
-- WPF Field Tool for OOBE with company branding
-- Printable instruction card for field technicians
-
 ## Features
 
 - **Azure Function Proxy:** Hardware hash uploads go through an Azure Function — Graph API credentials never leave Azure
