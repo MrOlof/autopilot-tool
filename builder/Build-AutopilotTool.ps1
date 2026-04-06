@@ -4,7 +4,8 @@
     Generates a configured field tool with company branding and Azure Function settings.
 
 .NOTES
-    Version: 2.0.0
+    Version: 1.0.0
+    Author:  MrOlof (https://mrolof.dev)
     License: MIT
 #>
 

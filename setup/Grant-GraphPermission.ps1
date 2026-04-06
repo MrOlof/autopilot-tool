@@ -15,6 +15,10 @@
 
 .EXAMPLE
     .\Grant-GraphPermission.ps1 -ManagedIdentityPrincipalId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+.AUTHOR
+    MrOlof
+    https://mrolof.dev
 #>
 
 [CmdletBinding()]

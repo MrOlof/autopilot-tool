@@ -9,6 +9,7 @@
 
 .NOTES
     Version: 1.0.0
+    Author:  MrOlof (https://mrolof.dev)
     License: MIT
     This file is a TEMPLATE. Use the Builder tool to generate a configured version.
 #>
