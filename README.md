@@ -163,6 +163,20 @@ az deployment group create \
 
 ---
 
+## Optional Hardening
+
+Not enabled by default, but available if your environment requires it:
+
+- **Rate limiting** — add per-IP request throttling via Azure Table Storage or API Management
+- **IP restrictions** — lock the Function App to known office/VPN IP ranges
+- **Application Insights** — enable full request logging and alerting (included in ARM template for manual deploys)
+- **Conditional Access for Workload Identities** — restrict Managed Identity token issuance to specific IPs (requires Entra Workload ID Premium)
+- **Resource locks** — apply a Read-Only lock on the resource group to prevent Function code changes
+
+The default setup is intentionally minimal. The blast radius of a leaked API key is already limited to submitting hardware hashes.
+
+---
+
 ## Requirements
 
 - Azure subscription (Consumption plan)
