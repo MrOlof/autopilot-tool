@@ -4,7 +4,7 @@
 
 **v1.0.0**
 
-Register devices into Windows Autopilot directly from OOBE — securely, without admin credentials on the device.
+Register devices into Windows Autopilot directly from OOBE — without exposing admin credentials.
 
 https://mrolof.dev/
 
@@ -12,32 +12,135 @@ https://mrolof.dev/
 
 ---
 
-## How It Works
+## What This Solves
 
-An **Azure Function** sits between the device and Microsoft Graph API. The device never touches Graph credentials — it only has a Function URL and API key.
+- No admin login on device
+- No Graph credentials on USB
+- Safe for field techs, vendors, or end users
+- Works directly from OOBE (Shift+F10)
 
-```
-USB stick  ──>  Azure Function (Managed Identity)  ──>  Graph API (Autopilot Import)
-```
+---
 
-**Anyone can run it** — field techs, end users, interns. No Intune admin role needed.
+## Quick Start
 
-**If the API key leaks?** Attacker can submit hardware hashes. That's it. No policy access, no data exposure. Rotate the key in Azure Portal instantly.
-
-## Getting Started
+**Admin (one-time setup):**
 
 ```powershell
-# 1. Install prerequisites
 Install-Module Az -Scope CurrentUser
 Install-Module Microsoft.Graph -Scope CurrentUser
-
-# 2. Run the Builder wizard
 .\Start-Builder.cmd
 ```
 
-The Builder walks you through 4 steps: deploy Azure backend, validate connection, set branding + group tags, generate the field tool.
+**Field usage:**
 
-Copy the output to a USB stick. At OOBE: `Shift+F10` → `d:` → `start.cmd`.
+1. Boot device to OOBE
+2. Press `Shift + F10`
+3. Run:
+
+```
+d:\start.cmd
+```
+
+Done. Device registers in Autopilot.
+
+---
+
+## How It Works
+
+```
+USB → Azure Function (Managed Identity) → Microsoft Graph → Autopilot
+```
+
+- Device sends hardware hash to Azure Function
+- Function authenticates using Managed Identity
+- Graph API import happens server-side
+
+Device never touches Graph credentials.
+
+---
+
+## Security Model
+
+### What the USB contains
+
+- Function URL
+- API key
+
+### If the USB leaks
+
+Attacker can:
+
+- Submit hardware hashes
+
+Attacker **cannot**:
+
+- Read Intune data
+- Modify policies
+- Access Graph API
+- Extract credentials
+
+### Why this is safe
+
+- API key only talks to Azure Function
+- Function exposes **only 3 endpoints**
+- Managed Identity token never leaves Azure
+
+---
+
+## API Surface
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/upload` | Upload hardware hash |
+| `GET /api/status/{id}` | Check import status |
+| `GET /api/health` | Health check |
+
+Anything else → **404**
+
+---
+
+## Why Not Use Other Methods?
+
+| Approach | Who can run it | Risk if USB is stolen |
+|---|---|---|
+| Delegated admin login | Admins only | None |
+| App registration (secret/cert) | Anyone | Full Graph access (dangerous) |
+| DEM account | Anyone | Unsupported by Microsoft |
+| **This tool** | **Anyone** | **Can only upload hashes** |
+
+---
+
+## Components
+
+| Component | Description |
+|---|---|
+| **Azure Function** | Secure proxy to Graph API |
+| **Builder** | Deploys backend + generates tool |
+| **Field Tool** | Runs in OOBE and uploads hash |
+
+---
+
+## Setup (Detailed)
+
+### 1. Install prerequisites
+
+```powershell
+Install-Module Az -Scope CurrentUser
+Install-Module Microsoft.Graph -Scope CurrentUser
+```
+
+### 2. Run builder
+
+```powershell
+.\Start-Builder.cmd
+```
+
+Builder will:
+
+1. Deploy Azure backend
+2. Configure permissions
+3. Set branding + group tags
+4. Generate field tool
 
 <details>
 <summary>Manual CLI setup (without Builder)</summary>
@@ -58,41 +161,16 @@ az deployment group create \
 
 </details>
 
-## Why Not Just Use an App Registration?
-
-| Approach | Who can run it? | Risk if USB is stolen |
-|----------|:-:|---|
-| Delegated auth (admin signs in) | Admins only | None — but doesn't scale |
-| App Registration + secret/cert | Anyone | Full `ReadWrite.All` — can modify Intune policies |
-| DEM account | Anyone | Microsoft says DEM + Autopilot is unsupported |
-| **This tool** | **Anyone** | **Can submit hardware hashes. That's it.** |
-
-### But the Managed Identity has broad permissions?
-
-Yes — the Managed Identity has `DeviceManagementServiceConfig.ReadWrite.All`. But the API key on the USB **is not a Graph API credential**. It's a key to the Azure Function, which only exposes 3 endpoints:
-
-| Endpoint | What it does |
-|----------|-------------|
-| `POST /api/upload` | Submit a hardware hash |
-| `GET /api/status/{id}` | Check import progress |
-| `GET /api/health` | Health check |
-
-If someone calls `/api/create-policy` or `/api/delete-device` — they get a **404**. Those endpoints don't exist. The Managed Identity token is generated inside the Function at runtime and is never returned in any response. The attacker never sees it and cannot use it.
-
-## Components
-
-| | Description |
-|---|---|
-| **Azure Function** | Proxy to Graph API with Managed Identity. Validates input, uploads hash, checks sync. |
-| **Builder** | Admin wizard — deploys Azure resources, configures branding, generates the field tool. |
-| **Field Tool** | OOBE client — collects hardware hash, picks group tag, uploads, polls for completion. |
+---
 
 ## Requirements
 
-- Azure subscription (Consumption plan — essentially free)
-- Intune license on the tenant (any plan with Intune Plan 1)
+- Azure subscription (Consumption plan)
+- Intune license (Plan 1+)
 - Windows 10 21H1+ or Windows 11
-- PowerShell 5.1 (built into Windows)
+- PowerShell 5.1
+
+---
 
 ## License
 
