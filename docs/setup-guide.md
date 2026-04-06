@@ -130,7 +130,7 @@ Install PS2EXE first:
 Install-Module ps2exe -Scope CurrentUser
 ```
 
-Then re-run the Builder — it will automatically generate an `.exe` alongside the `.ps1`.
+Then re-run the Builder - it will automatically generate an `.exe` alongside the `.ps1`.
 
 ## Step 7: Prepare USB Stick
 
@@ -173,11 +173,11 @@ The device will now pick up its Autopilot profile on the next OOBE run.
 
 ### "Device already registered"
 
-The device hash is already in Autopilot. No action needed — restart OOBE.
+The device hash is already in Autopilot. No action needed - restart OOBE.
 
 ### Upload succeeds but sync times out
 
-The hash was uploaded successfully. Autopilot sync can take up to 15 minutes. Restart OOBE and wait — the profile will be assigned.
+The hash was uploaded successfully. Autopilot sync can take up to 15 minutes. Restart OOBE and wait - the profile will be assigned.
 
 ### No network at OOBE
 
