@@ -15,24 +15,31 @@ https://mrolof.dev/ | [Read the full blog post](https://mrolof.dev/blog/autopilo
 ## What's New in v2
 
 **QR Code Authentication**
+
 Technician scans a QR code on their phone, signs in with Entra ID on a hosted approval page, and approves the registration. No static keys needed on the USB.
 
 **Entra Security Group Gating**
+
 Only members of an `AutopilotRegistrators` security group can approve registrations. Works with Entra ID Governance and Entitlement Management for self-service access requests and time-limited access.
 
 **Teams Webhook Notifications**
+
 Adaptive Card alerts sent to a Teams channel on every registration event (success, duplicate, failure) with serial number, group tag, and who registered it.
 
 **Audit Log**
+
 Every registration recorded in Azure Table Storage. Track who registered which device, when, from where, and whether it succeeded. Queryable by month, searchable by serial number.
 
 **Hosted Approval Page**
+
 Mobile-friendly, dark-themed Entra ID sign-in page served directly from the Azure Function. Techs scan the QR, authenticate, and approve — all in the browser.
 
 **Redesigned UI**
+
 Darker theme, resizable windows, focus highlights, rounded corners in both Builder and Field Tool.
 
 **Automated Entra Setup**
+
 Builder creates the App Registration, security group, grants Graph permissions, and applies admin consent automatically.
 
 ---
