@@ -2,9 +2,9 @@
 
 # Autopilot Registration Tool
 
-**v1.0.0**
+**v2.0.0**
 
-Register devices into Windows Autopilot directly from OOBE - without exposing admin credentials.
+Register devices into Windows Autopilot directly from OOBE — no admin credentials, no secrets on the USB.
 
 https://mrolof.dev/ | [Read the full blog post](https://mrolof.dev/blog/autopilot-registration-tool)
 
@@ -12,18 +12,73 @@ https://mrolof.dev/ | [Read the full blog post](https://mrolof.dev/blog/autopilo
 
 ---
 
-## What This Solves
+## What's New in v2
 
-- No admin login on device
-- No Graph credentials on USB
-- Safe for field techs, vendors, or end users
-- Works directly from OOBE (Shift+F10)
+- **QR Code Authentication** — technician scans a QR code on their phone, signs in with Entra ID on a hosted approval page, and approves the registration. No static keys needed on the USB.
+- **Entra Security Group Gating** — only members of an `AutopilotRegistrators` security group can approve registrations. Works with Entra ID Governance and Entitlement Management for self-service access requests and time-limited access.
+- **Teams Webhook Notifications** — Adaptive Card alerts sent to a Teams channel on every registration event (success, duplicate, failure) with serial number, group tag, and who registered it.
+- **Audit Log** — every registration recorded in Azure Table Storage. Track who registered which device, when, from where, and whether it succeeded. Queryable by month, searchable by serial number.
+- **Hosted Approval Page** — mobile-friendly Entra ID sign-in page served directly from the Azure Function. Techs scan the QR, authenticate, and approve — all in the browser.
+- **Redesigned UI** — darker theme, resizable windows, focus highlights, rounded corners in both Builder and Field Tool.
+- **Automated Entra Setup** — Builder creates the App Registration, security group, grants Graph permissions, and applies admin consent automatically.
+
+---
+
+## How It Works
+
+### Legacy Mode (v1)
+
+```
+USB (API key) → Azure Function → Graph API → Autopilot
+```
+
+### QR Auth Mode (v2)
+
+```
+  OOBE Device                        Technician's Phone
+  ============                       ====================
+  1. Run field tool
+  2. QR code appears on screen  -->  3. Scan QR code
+                                     4. Sign in with Entra ID
+                                     5. Approve registration
+  6. Device receives token
+  7. Upload hash with token     -->  Azure Function → Graph API → Autopilot
+```
+
+No secrets on the USB. Every registration tied to a user identity.
+
+---
+
+## Security Model
+
+### What the USB contains
+
+| Mode | USB contents | If USB is stolen |
+|---|---|---|
+| Legacy (v1) | Function URL + API key | Attacker can submit hashes (nothing else) |
+| QR Auth (v2) | Function URL only | Useless without an authorized Entra account |
+
+### What the attacker **cannot** do (either mode)
+
+- Read Intune data
+- Modify policies
+- Access Graph API directly
+- Extract credentials
+
+### QR Auth security layers
+
+- Entra ID authentication (MFA, Conditional Access apply)
+- Security group membership check
+- 15-minute session TTL
+- Single-use tokens (consumed after upload)
+- RSA signature verification on Entra tokens
+- HS256 signed session JWTs
 
 ---
 
 ## Quick Start
 
-**Admin (one-time setup):**
+### Admin (one-time setup)
 
 ```powershell
 Install-Module Az -Scope CurrentUser
@@ -31,7 +86,15 @@ Install-Module Microsoft.Graph -Scope CurrentUser
 .\Start-Builder.cmd
 ```
 
-**Field usage:**
+The Builder wizard will:
+
+1. Deploy Azure Function backend
+2. Configure Graph API permissions
+3. Set up QR auth (App Registration, security group, admin consent) — optional
+4. Configure branding and group tags
+5. Generate the field tool for USB deployment
+
+### Field usage
 
 1. Boot device to OOBE
 2. Press `Shift + F10`
@@ -41,72 +104,44 @@ Install-Module Microsoft.Graph -Scope CurrentUser
 d:\start.cmd
 ```
 
-Done. Device registers in Autopilot.
+4. If QR auth is enabled: scan the QR code with your phone and approve
+5. Device registers in Autopilot
 
 ---
 
-## How It Works
+## API Endpoints
 
-```
-USB → Azure Function (Managed Identity) → Microsoft Graph → Autopilot
-```
+### Core
 
-- Device sends hardware hash to Azure Function
-- Function authenticates using Managed Identity
-- Graph API import happens server-side
-
-Device never touches Graph credentials.
-
----
-
-## Security Model
-
-### What the USB contains
-
-- Function URL
-- API key
-
-### If the USB leaks
-
-Attacker can:
-
-- Submit hardware hashes
-
-Attacker **cannot**:
-
-- Read Intune data
-- Modify policies
-- Access Graph API
-- Extract credentials
-
-### Why this is safe
-
-- API key only talks to Azure Function
-- Function exposes **only 3 endpoints**
-- Managed Identity token never leaves Azure
-
----
-
-## API Surface
-
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/upload` | Upload hardware hash |
-| `GET /api/status/{id}` | Check import status |
-| `GET /api/health` | Health check |
-
-Anything else → **404**
-
----
-
-## Why Not Use Other Methods?
-
-| Approach | Who can run it | Risk if USB is stolen |
+| Endpoint | Auth | Purpose |
 |---|---|---|
-| Delegated admin login | Admins only | None |
-| App registration (secret/cert) | Anyone | Full Graph access (dangerous) |
-| DEM account | Anyone | Unsupported by Microsoft |
-| **This tool** | **Anyone** | **Can only upload hashes** |
+| `POST /api/upload` | Function key or session token | Upload hardware hash |
+| `GET /api/status/{id}` | Function key | Check import status |
+| `GET /api/health` | Anonymous | Health check + feature status |
+
+### QR Auth (enabled via `ENABLE_QR_AUTH`)
+
+| Endpoint | Auth | Purpose |
+|---|---|---|
+| `POST /api/session` | Anonymous | Create approval session |
+| `GET /api/session/{id}/status` | Anonymous | Poll session state |
+| `POST /api/session/{id}/approve` | Entra ID token | Approve a session |
+| `GET /api/approve` | Anonymous | Approval page (HTML) |
+
+Anything else returns **404**.
+
+---
+
+## Optional Features
+
+All features are off by default. Enable via Function App settings:
+
+| Feature | App Setting | Description |
+|---|---|---|
+| QR Authentication | `ENABLE_QR_AUTH=true` | Entra ID session-based auth |
+| Audit Log | `ENABLE_AUDIT_LOG=true` | Registration history in Table Storage |
+| Teams Notifications | `TEAMS_WEBHOOK_URL=<url>` | Adaptive Card alerts to Teams |
+| Security Group | `SECURITY_GROUP_ID=<guid>` | Restrict approvals to group members |
 
 ---
 
@@ -114,36 +149,36 @@ Anything else → **404**
 
 | Component | Description |
 |---|---|
-| **Azure Function** | Secure proxy to Graph API |
-| **Builder** | Deploys backend + generates tool |
-| **Field Tool** | Runs in OOBE and uploads hash |
+| **Azure Function** | PowerShell 7.2 proxy to Graph API, Managed Identity |
+| **Builder** | WPF wizard — deploys backend, configures features, generates field tool |
+| **Field Tool** | WPF app — runs at OOBE, collects hash, handles QR flow, uploads |
 
 ---
 
-## Setup (Detailed)
+## Graph API Permissions
 
-### 1. Install prerequisites
+Granted to the Function App's Managed Identity:
+
+| Permission | Required | Purpose |
+|---|---|---|
+| `DeviceManagementServiceConfig.ReadWrite.All` | Always | Autopilot hash upload |
+| `GroupMember.Read.All` | QR auth | Security group membership check |
+| `User.Read.All` | QR auth | User lookup for group check |
 
 ```powershell
-Install-Module Az -Scope CurrentUser
-Install-Module Microsoft.Graph -Scope CurrentUser
+# Grant all permissions (QR auth)
+.\setup\Grant-GraphPermission.ps1 -ManagedIdentityPrincipalId "<id>" -IncludeGroupRead
+
+# Grant base permission only (legacy mode)
+.\setup\Grant-GraphPermission.ps1 -ManagedIdentityPrincipalId "<id>"
 ```
 
-### 2. Run builder
+---
 
-```powershell
-.\Start-Builder.cmd
-```
-
-Builder will:
-
-1. Deploy Azure backend
-2. Configure permissions
-3. Set branding + group tags
-4. Generate field tool
+## Manual Setup
 
 <details>
-<summary>Manual CLI setup (without Builder)</summary>
+<summary>CLI setup without Builder</summary>
 
 ```powershell
 az login
@@ -154,9 +189,14 @@ az deployment group create \
   --template-file azure-function/deploy.json \
   --parameters namePrefix=autopilot-tool
 
-.\setup\Grant-GraphPermission.ps1 -ManagedIdentityPrincipalId "<principalId>"
+# Grant permissions (add -IncludeGroupRead for QR auth)
+.\setup\Grant-GraphPermission.ps1 -ManagedIdentityPrincipalId "<principalId>" -IncludeGroupRead
 
-# Deploy code, then get key from Azure Portal > Function App > App keys > default
+# Deploy code
+cd azure-function
+func azure functionapp publish <functionAppName>
+
+# Get key from Azure Portal > Function App > App keys > default
 ```
 
 </details>
@@ -165,15 +205,12 @@ az deployment group create \
 
 ## Optional Hardening
 
-Not enabled by default, but available if your environment requires it:
-
-- **Rate limiting** - add per-IP request throttling via Azure Table Storage or API Management
-- **IP restrictions** - lock the Function App to known office/VPN IP ranges
-- **Application Insights** - enable full request logging and alerting (included in ARM template for manual deploys)
-- **Conditional Access for Workload Identities** - restrict Managed Identity token issuance to specific IPs (requires Entra Workload ID Premium)
-- **Resource locks** - apply a Read-Only lock on the resource group to prevent Function code changes
-
-The default setup is intentionally minimal. The blast radius of a leaked API key is already limited to submitting hardware hashes.
+- **Rate limiting** — per-IP throttling via API Management or Table Storage counters
+- **IP restrictions** — lock Function App to known office/VPN ranges
+- **Application Insights** — full request logging (included in ARM template for manual deploys)
+- **Conditional Access** — MFA and device compliance policies apply to QR auth sign-in
+- **Workload Identity CA** — restrict Managed Identity token issuance to specific IPs (requires Entra Workload ID Premium)
+- **Resource locks** — Read-Only lock on the resource group
 
 ---
 
@@ -188,4 +225,4 @@ The default setup is intentionally minimal. The blast radius of a leaked API key
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

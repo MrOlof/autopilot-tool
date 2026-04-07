@@ -4,6 +4,86 @@ param($Request, $TriggerMetadata)
 
 $ErrorActionPreference = 'Stop'
 
+# Optional modules — loaded only when features are enabled
+if ($env:ENABLE_AUDIT_LOG -eq 'true' -or $env:ENABLE_QR_AUTH -eq 'true') {
+    Import-Module (Join-Path $PSScriptRoot '..\Modules\TableStorage.psm1') -Force
+}
+
+# Teams Workflow notification helper
+function Send-TeamsNotification {
+    param(
+        [string]$SerialNumber,
+        [string]$GroupTag,
+        [string]$Status,
+        [string]$RegisteredBy,
+        [string]$ErrorDetail
+    )
+    $webhookUrl = $env:TEAMS_WEBHOOK_URL
+    if (-not $webhookUrl) { return }
+
+    $facts = @(
+        @{ title = 'Serial Number'; value = $SerialNumber }
+        @{ title = 'Group Tag'; value = if ($GroupTag) { $GroupTag } else { 'None' } }
+        @{ title = 'Status'; value = $Status }
+        @{ title = 'Timestamp'; value = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC') }
+    )
+    if ($RegisteredBy) {
+        $facts += @{ title = 'Registered By'; value = $RegisteredBy }
+    }
+    if ($ErrorDetail) {
+        $facts += @{ title = 'Error'; value = $ErrorDetail }
+    }
+
+    $card = @{
+        type        = 'message'
+        attachments = @(@{
+            contentType = 'application/vnd.microsoft.card.adaptive'
+            content     = @{
+                '$schema' = 'http://adaptivecards.io/schemas/adaptive-card.json'
+                type      = 'AdaptiveCard'
+                version   = '1.4'
+                body      = @(
+                    @{ type = 'TextBlock'; text = "Autopilot Device $Status"; weight = 'Bolder'; size = 'Medium' }
+                    @{ type = 'FactSet'; facts = $facts }
+                )
+            }
+        })
+    }
+
+    try {
+        Invoke-RestMethod -Uri $webhookUrl -Method POST `
+            -Body ($card | ConvertTo-Json -Depth 10) `
+            -ContentType 'application/json' -TimeoutSec 10 | Out-Null
+    }
+    catch {
+        Write-Warning "Teams notification failed: $_"
+    }
+}
+
+# Identity tracking — populated by QR session auth when enabled
+$registeredBy = $null
+
+# QR session auth: if Bearer token present, validate and extract identity
+$authHeader = $Request.Headers['Authorization']
+if ($authHeader -and $authHeader -match '^Bearer (.+)$') {
+    if ($env:ENABLE_QR_AUTH -eq 'true') {
+        Import-Module (Join-Path $PSScriptRoot '..\Modules\SessionManager.psm1') -Force
+        try {
+            $claims = Test-SessionToken -Token $Matches[1]
+            $registeredBy = $claims.upn
+            Set-SessionConsumed -SessionId $claims.sessionId -PartitionKey $claims.pk
+        }
+        catch {
+            Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::Unauthorized
+                Body       = @{ error = "Session token validation failed: $_" } | ConvertTo-Json
+                Headers    = @{ 'Content-Type' = 'application/json' }
+            })
+            return
+        }
+    }
+}
+
 $body = $Request.Body
 
 if (-not $body) {
@@ -112,6 +192,28 @@ try {
 
     Write-Information "Successfully submitted import for serial: $serialNumber, import ID: $($response.id)"
 
+    # Audit log
+    if ($env:ENABLE_AUDIT_LOG -eq 'true') {
+        try {
+            Write-TableEntity -TableName 'registrations' `
+                -PartitionKey (Get-Date -Format 'yyyy-MM') `
+                -RowKey $response.id `
+                -Properties @{
+                    SerialNumber  = $serialNumber
+                    GroupTag      = if ($groupTag) { $groupTag } else { '' }
+                    RegisteredBy  = if ($registeredBy) { $registeredBy } else { '' }
+                    ClientIP      = $clientIp
+                    GraphImportId = $response.id
+                    Status        = 'Success'
+                }
+        }
+        catch { Write-Warning "Audit log write failed: $_" }
+    }
+
+    # Teams notification
+    Send-TeamsNotification -SerialNumber $serialNumber -GroupTag $groupTag `
+        -Status 'Registered' -RegisteredBy $registeredBy
+
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::OK
         Body       = @{
@@ -129,6 +231,25 @@ catch {
     Write-Error "Graph API call failed: $errorDetail"
 
     if ($errorDetail -match '409' -or $errorDetail -match 'already exists') {
+        if ($env:ENABLE_AUDIT_LOG -eq 'true') {
+            try {
+                Write-TableEntity -TableName 'registrations' `
+                    -PartitionKey (Get-Date -Format 'yyyy-MM') `
+                    -RowKey ([guid]::NewGuid().ToString()) `
+                    -Properties @{
+                        SerialNumber = $serialNumber
+                        GroupTag     = if ($groupTag) { $groupTag } else { '' }
+                        RegisteredBy = if ($registeredBy) { $registeredBy } else { '' }
+                        ClientIP     = $clientIp
+                        Status       = 'Duplicate'
+                        ErrorDetail  = $errorDetail
+                    }
+            }
+            catch { Write-Warning "Audit log write failed: $_" }
+        }
+        Send-TeamsNotification -SerialNumber $serialNumber -GroupTag $groupTag `
+            -Status 'Duplicate' -RegisteredBy $registeredBy -ErrorDetail 'Device already registered'
+
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::Conflict
             Body       = @{
@@ -140,6 +261,25 @@ catch {
         })
         return
     }
+
+    if ($env:ENABLE_AUDIT_LOG -eq 'true') {
+        try {
+            Write-TableEntity -TableName 'registrations' `
+                -PartitionKey (Get-Date -Format 'yyyy-MM') `
+                -RowKey ([guid]::NewGuid().ToString()) `
+                -Properties @{
+                    SerialNumber = $serialNumber
+                    GroupTag     = if ($groupTag) { $groupTag } else { '' }
+                    RegisteredBy = if ($registeredBy) { $registeredBy } else { '' }
+                    ClientIP     = $clientIp
+                    Status       = 'Failed'
+                    ErrorDetail  = $errorDetail
+                }
+        }
+        catch { Write-Warning "Audit log write failed: $_" }
+    }
+    Send-TeamsNotification -SerialNumber $serialNumber -GroupTag $groupTag `
+        -Status 'Failed' -RegisteredBy $registeredBy -ErrorDetail $errorDetail
 
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::InternalServerError

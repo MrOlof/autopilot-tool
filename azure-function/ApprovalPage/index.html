@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{COMPANY_NAME}} - Autopilot Registration</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: #0f0f13; color: #e8e8ec;
+    min-height: 100dvh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px 16px;
+  }
+
+  /* Branding */
+  .logo { margin-bottom: 32px; text-align: center; }
+  .logo-icon {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px; font-size: 26px; color: white;
+    box-shadow: 0 4px 24px rgba(59, 130, 246, 0.3);
+  }
+  .logo-title { font-size: 15px; font-weight: 600; color: #e8e8ec; }
+  .logo-subtitle { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+  /* Card */
+  .card {
+    background: #1a1b20; border: 1px solid #2a2b30;
+    border-radius: 16px; padding: 28px 24px;
+    max-width: 400px; width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+
+  /* Device info */
+  .device-card {
+    background: #0f0f13; border: 1px solid #25262b;
+    border-radius: 12px; padding: 18px; margin-bottom: 20px;
+  }
+  .device-card .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: #6b7280; font-weight: 600; margin-bottom: 4px;
+  }
+  .device-card .value { font-size: 16px; font-weight: 600; color: #e8e8ec; }
+  .device-card .session-id {
+    font-size: 11px; font-family: 'Cascadia Mono', 'Consolas', monospace;
+    color: #4b5563; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid #25262b; word-break: break-all;
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s ease; -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 4px 24px rgba(59, 130, 246, 0.5); }
+  .btn-primary:disabled {
+    background: #25262b; color: #4b5563;
+    cursor: not-allowed; box-shadow: none; transform: none;
+  }
+  .btn-signin {
+    background: #25262b; color: #e8e8ec;
+    border: 1px solid #35363b;
+  }
+  .btn-signin:hover { background: #2e3035; }
+  .btn-signin .ms-icon {
+    display: inline-block; width: 18px; height: 18px;
+    vertical-align: middle; margin-right: 8px; margin-top: -2px;
+  }
+
+  /* User info */
+  .user-card {
+    display: flex; align-items: center; gap: 12px;
+    background: #0f0f13; border: 1px solid #25262b;
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+  }
+  .user-card .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; color: white; flex-shrink: 0;
+  }
+  .user-card .name { font-size: 14px; font-weight: 600; }
+  .user-card .email { font-size: 12px; color: #6b7280; margin-top: 1px; }
+  .user-card .check {
+    margin-left: auto; color: #34d399; font-size: 20px; flex-shrink: 0;
+  }
+
+  /* Status messages */
+  .status {
+    text-align: center; padding: 16px 20px; border-radius: 12px;
+    margin-top: 16px; font-size: 14px; font-weight: 500;
+  }
+  .status-success {
+    background: linear-gradient(135deg, #064e3b, #065f46);
+    color: #6ee7b7; border: 1px solid #10b981;
+  }
+  .status-error {
+    background: linear-gradient(135deg, #7f1d1d, #991b1b);
+    color: #fca5a5; border: 1px solid #ef4444;
+  }
+  .status-expired {
+    background: linear-gradient(135deg, #78350f, #92400e);
+    color: #fcd34d; border: 1px solid #f59e0b;
+  }
+
+  /* Loading */
+  .loading-container {
+    display: flex; align-items: center; justify-content: center;
+    padding: 8px 0; color: #6b7280; font-size: 14px;
+  }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2.5px solid #25262b; border-top-color: #3b82f6;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin-right: 10px; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+
+  /* Success animation */
+  .success-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px; font-size: 32px; color: white;
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+    animation: pop 0.3s ease-out;
+  }
+  @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+  /* Footer */
+  .footer {
+    margin-top: 24px; text-align: center;
+    font-size: 11px; color: #3b3d42;
+  }
+</style>
+</head>
+<body>
+
+<div class="logo">
+  <div class="logo-icon">&#x1F4BB;</div>
+  <div class="logo-title">{{COMPANY_NAME}} - Autopilot Registration</div>
+  <div class="logo-subtitle">Device approval request</div>
+</div>
+
+<div class="card">
+  <div id="loading" class="loading-container">
+    <span class="spinner"></span> Loading session...
+  </div>
+
+  <div id="session-info" class="hidden">
+    <div class="device-card">
+      <div class="label">Serial Number</div>
+      <div class="value" id="serial">&mdash;</div>
+      <div class="session-id" id="session-id">&mdash;</div>
+    </div>
+
+    <div id="signin-section">
+      <button class="btn btn-signin" id="btn-signin" onclick="signIn()">
+        <svg class="ms-icon" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+          <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+          <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+          <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+        </svg>
+        Sign in with Microsoft
+      </button>
+    </div>
+
+    <div id="user-section" class="hidden">
+      <div class="user-card">
+        <div class="avatar" id="user-avatar">?</div>
+        <div>
+          <div class="name" id="user-name">&mdash;</div>
+          <div class="email" id="user-email">&mdash;</div>
+        </div>
+        <div class="check">&#x2713;</div>
+      </div>
+      <button class="btn btn-primary" id="btn-approve" onclick="approveSession()">Approve Registration</button>
+    </div>
+  </div>
+
+  <div id="success-view" class="hidden" style="text-align:center; padding: 8px 0;">
+    <div class="success-icon">&#x2713;</div>
+    <div style="font-size: 17px; font-weight: 600; margin-bottom: 6px;">Approved</div>
+    <div style="font-size: 13px; color: #6b7280;">The device will continue registration shortly.</div>
+  </div>
+
+  <div id="status-msg" class="hidden"></div>
+</div>
+
+<div class="footer">Autopilot Tool &middot; Secured by Entra ID</div>
+
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script>
+const CONFIG = {
+  tenantId: '{{TENANT_ID}}',
+  clientId: '{{CLIENT_ID}}',
+  apiBaseUrl: '{{API_BASE_URL}}'
+};
+
+const params = new URLSearchParams(window.location.search);
+let sessionId = params.get('session');
+let pk = params.get('pk');
+
+// Persist session params across MSAL redirects
+if (sessionId && pk) {
+  sessionStorage.setItem('ap_session', sessionId);
+  sessionStorage.setItem('ap_pk', pk);
+} else {
+  sessionId = sessionStorage.getItem('ap_session');
+  pk = sessionStorage.getItem('ap_pk');
+}
+
+let msalInstance = null;
+let userAccount = null;
+
+async function initMsal() {
+  const msalConfig = {
+    auth: {
+      clientId: CONFIG.clientId,
+      authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: 'sessionStorage' }
+  };
+  if (typeof msal.PublicClientApplication.createPublicClientApplication === 'function') {
+    msalInstance = await msal.PublicClientApplication.createPublicClientApplication(msalConfig);
+  } else {
+    msalInstance = new msal.PublicClientApplication(msalConfig);
+    if (msalInstance.initialize) {
+      await msalInstance.initialize();
+    }
+  }
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status-msg');
+  el.className = `status status-${type}`;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function showSignedIn(account) {
+  userAccount = account;
+  document.getElementById('signin-section').classList.add('hidden');
+  document.getElementById('user-section').classList.remove('hidden');
+  document.getElementById('user-name').textContent = account.name || account.username;
+  document.getElementById('user-email').textContent = account.username;
+  document.getElementById('user-avatar').textContent = (account.name || '?')[0].toUpperCase();
+}
+
+async function loadSession() {
+  if (!sessionId || !pk) {
+    showStatus('Invalid link \u2014 missing session parameters.', 'error');
+    document.getElementById('loading').classList.add('hidden');
+    return;
+  }
+
+  try {
+    const url = `${CONFIG.apiBaseUrl}/session/${sessionId}/status?pk=${encodeURIComponent(pk)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      document.getElementById('loading').classList.add('hidden');
+      showStatus(errData.error || `Session lookup failed (HTTP ${res.status})`, 'error');
+      return;
+    }
+    const data = await res.json();
+
+    if (data.status === 'expired') {
+      document.getElementById('loading').classList.add('hidden');
+      showStatus('This session has expired. Please start a new registration on the device.', 'expired');
+      return;
+    }
+    if (data.status === 'approved') {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('success-view').classList.remove('hidden');
+      return;
+    }
+    if (data.status === 'consumed') {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('success-view').classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('serial').textContent = data.serialNumber || '\u2014';
+    document.getElementById('session-id').textContent = sessionId;
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('session-info').classList.remove('hidden');
+  } catch (err) {
+    document.getElementById('loading').classList.add('hidden');
+    showStatus('Failed to load session: ' + err.message, 'error');
+  }
+}
+
+async function signIn() {
+  try {
+    await msalInstance.loginRedirect({ scopes: ['openid', 'profile'] });
+  } catch (err) {
+    if (err.errorCode === 'interaction_in_progress') return;
+    if (err.errorCode !== 'user_cancelled') {
+      showStatus('Sign-in failed: ' + err.message, 'error');
+    }
+  }
+}
+
+async function approveSession() {
+  const btn = document.getElementById('btn-approve');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="margin-right:8px;width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;"></span> Approving...';
+
+  try {
+    let tokenResponse;
+    try {
+      tokenResponse = await msalInstance.acquireTokenSilent({
+        scopes: ['openid', 'profile'],
+        account: userAccount
+      });
+    } catch (silentErr) {
+      await msalInstance.acquireTokenRedirect({
+        scopes: ['openid', 'profile'],
+        account: userAccount
+      });
+      return;
+    }
+
+    const res = await fetch(`${CONFIG.apiBaseUrl}/session/${sessionId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${tokenResponse.idToken}`
+      },
+      body: JSON.stringify({ partitionKey: pk })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.approved) {
+      document.getElementById('session-info').classList.add('hidden');
+      document.getElementById('success-view').classList.remove('hidden');
+    } else if (res.status === 403) {
+      showStatus(data.error || 'You are not authorized to approve registrations. Contact your IT admin.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Approve Registration';
+    } else if (res.status === 410) {
+      showStatus('This session has expired. Please start a new registration on the device.', 'expired');
+    } else {
+      showStatus(data.error || `Approval failed (HTTP ${res.status})`, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Approve Registration';
+    }
+  } catch (err) {
+    showStatus('Approval failed: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Approve Registration';
+  }
+}
+
+// Initialize
+(async () => {
+  try {
+    await initMsal();
+
+    try {
+      const redirectResult = await msalInstance.handleRedirectPromise();
+      if (redirectResult && redirectResult.account) {
+        showSignedIn(redirectResult.account);
+      }
+    } catch (e) { /* ignore redirect errors */ }
+
+    if (!userAccount) {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        showSignedIn(accounts[0]);
+      }
+    }
+
+    await loadSession();
+  } catch (err) {
+    document.getElementById('loading').classList.add('hidden');
+    showStatus('Initialization error: ' + err.message, 'error');
+  }
+})();
+</script>
+</body>
+</html>
