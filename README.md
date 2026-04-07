@@ -6,7 +6,7 @@
 
 Register devices into Windows Autopilot directly from OOBE — no admin credentials, no secrets on the USB.
 
-https://mrolof.dev/ | [Read the full blog post](https://mrolof.dev/blog/autopilot-registration-tool)
+https://mrolof.dev/ | [v1 blog post](https://mrolof.dev/blog/autopilot-registration-tool) | [v2 blog post](https://mrolof.dev/blog/autopilot-registration-tool-v2)
 
 </div>
 
